@@ -94,6 +94,7 @@ jobs:
         run: echo "nachocardona/${{ env.IMAGE_NAME }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
   update-tag:
     runs-on: ubuntu
+    needs: build
     name: "Update Tag"
     steps:
       - run: |
