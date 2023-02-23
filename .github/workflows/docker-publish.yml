@@ -23,7 +23,6 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -75,7 +74,7 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: nachocardona/${{ env.CONFIG_REPO_NAME }}
+          tags: nachocardona/${{ env.IMAGE_NAME }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -92,4 +91,21 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "nachocardona/${{ env.CONFIG_REPO_NAME }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        run: echo "nachocardona/${{ env.IMAGE_NAME }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+  update-tag:
+    runs-on: ubuntu
+    name: "Update Tag"
+    steps:
+      - run: |
+          echo "Updating Tag in Gitops Repositoryt!"
+          git config --global user.email ci-bot@argocd.com && git config --global user.name ci-bot
+          echo "cloning config repo $CONFIG_GITOPS_NAME"
+          git clone https://oauth2:${{ secrets.GITOPS_PASSWORD }}@github.com/${{ github.repository_owner }}/$CONFIG_REPO_NAME.git
+          cd $CONFIG_REPO_NAME
+          echo "checkout main branch"
+          git checkout main
+          echo "updating image tag in values file"
+          sed -i "s,image:.*,image:\ nachocardona/${{ env.IMAGE_NAME }}${{ steps.build-and-push.outputs.digest }}," base/deployment.yml
+          git add . && git commit -m "update image tag"
+          git push
+    
